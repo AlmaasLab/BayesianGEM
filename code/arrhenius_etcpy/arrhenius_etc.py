@@ -28,7 +28,7 @@ def calculate_fNT(T, Ei):
     return 1 / (1 + math.exp(Ei/(R*T)))
 
 def calculate_rate(T, Ea, Ei, A=1):
-    return calculate_kcatT(T=T, Ea=Ea, A=A) * fNT(T=T, Ei=Ei)
+    return calculate_kcatT(T=T, Ea=Ea, A=A) * calculate_fNT(T=T, Ei=Ei)
 
 
 def calculate_Topt(Ea, Ei):
@@ -37,7 +37,7 @@ def calculate_Topt(Ea, Ei):
     used internally for determining Ea and Ei through
     non-linear equation solving
     """
-    return Ei / (R*math.ln(Ea/(Ei-Ea)))
+    return Ei / (R*math.log(Ea/(Ei-Ea)))
 
 
 
@@ -62,7 +62,7 @@ def get_Ea_Ei_from_Topt_Tm(Topt,Tm):
         Ei = x[1]
         return[Topt - calculate_Topt(Ea, Ei), calculate_rate(Tm, Ea, Ei) - 0.5*calculate_rate(Topt, Ea, Ei)]
     x0 = [10, 10]
-    return fsolve(equation_system, x0=[10, 10])
+    return fsolve(equation_system, x0=[10, 20])
     
 
 

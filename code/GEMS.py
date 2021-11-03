@@ -3,14 +3,18 @@
 
 # In[1]:
 
-
 import pandas as pd
 import numpy as np
 import pickle
 from etcpy import etc
+# This is actually a necessary import when combined with some evil
+# Python module trickery
+from arrhenius_etcpy import arrhenius_etc
 import os
 from sklearn.metrics import mean_squared_error as MSE
 from sklearn.metrics import r2_score
+
+
 
 
 # ### save .pkl model

@@ -300,6 +300,7 @@ def sample_data_uncertainty(params,columns=None):
                 sampled_params.loc[ind,'T90'] = sampled_params.loc[ind,col] + params.loc[ind,'T90']-params.loc[ind,col]
     return sampled_params
 
+
 def sample_data_uncertainty_with_constraint(inpt,columns=None):
     if type(inpt)==tuple:
         params,seed = inpt
@@ -352,6 +353,7 @@ def sample_data_uncertainty_with_constraint(inpt,columns=None):
     # update Topt
     sampled_params['T90'] = sampled_params['Tm']+params['T90']-params['Tm']
     return sampled_params
+    
 
 def calculate_thermal_params(params):
     '''

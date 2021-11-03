@@ -2,7 +2,6 @@ import numpy as np
 from scipy.optimize import fsolve
 import pandas as pd
 import time
-import math
 
 R = 8.314
 
@@ -19,50 +18,49 @@ def calculate_kcatT(T, Ea, A=1):
     Returns:
         [float]: kcat value
     """
-    return A * math.exp(- Ea / (R*T))
+    return A * np.exp(- Ea / (R*T))
 
-def calculate_fNT(T, Ei):
+
+def u(T, dHeq, Tm):
+    """
+    Helper function for computing denaturation
+    """
+    return dHeq / R * (1 / Tm - 1 /T)
+
+
+def calculate_fNT(T, dHeq, Tm):
     """
     Calculate the fraction of enzyme in native state
     """
-    return 1 / (1 + math.exp(Ei/(R*T)))
-
-def calculate_rate(T, Ea, Ei, A=1):
-    return calculate_kcatT(T=T, Ea=Ea, A=A) * calculate_fNT(T=T, Ei=Ei)
+    return 1 / (1 + np.exp(u(T, dHeq, Tm)))
 
 
-def calculate_Topt(Ea, Ei):
-    """
-    Backfits the Topt parameter based on Ei and Ea,
-    used internally for determining Ea and Ei through
-    non-linear equation solving
-    """
-    return Ei / (R*math.log(Ea/(Ei-Ea)))
+def calculate_rate(T, Ea, dHeq, Tm, A=1):
+    return calculate_kcatT(T=T, Ea=Ea, A=A) * calculate_fNT(T=T, dHeq=dHeq, Tm=Tm)
 
 
 
 
 
-def get_Ea_Ei_from_Topt_Tm(Topt,Tm):
+def get_Ea_dHeq_from_Topt_Tm_T90(Topt,Tm, T90):
     '''
     # With knowing Topt and Tm, we can compute the activation energies
-    # from a non-linear solve
     # using:
     # 
-    # Topt = Ei/(R*ln(Ea/(Ei-Ea)))
-    # rate(Tm) = 0.5*rate(T_opt)
+    # d / dT rate(T_opt) = 0
+    # fNT(Tm) = 0.5 (already covered by the formula itself)
+    # fNT(T90) = 0.1
     # Topt, Tm are in K
     '''
-    def equation_system(x):
-        """
-        x[0]: Ea
-        x[1]: Ei
-        """
-        Ea = x[0]
-        Ei = x[1]
-        return[Topt - calculate_Topt(Ea, Ei), calculate_rate(Tm, Ea, Ei) - 0.5*calculate_rate(Topt, Ea, Ei)]
-    x0 = [10, 10]
-    return fsolve(equation_system, x0=[10, 20])
+
+    dHeq = R*T90*Tm*np.log(9) / (T90 - Tm)
+    # The original formula was 
+    # dHeq*np.exp(dHeq/(R*Tm)) / (np.exp(dHeq/(R*Topt)) + np.exp(dHeq/ (R*Tm))),
+    # but proved to be too numerically instable
+    Ea = dHeq*calculate_fNT(T=T90,dHeq=dHeq,Tm=Tm)
+
+
+    return Ea, dHeq 
     
 
 
@@ -111,9 +109,9 @@ def map_fNT(model,T,df,Tadj=0):
         if len(rxn.metabolites)<2: continue
 
         uniprot_id = rxn.id.split('_')[-1]
-        cols = ['Ei']
-        Ei =df.loc[uniprot_id,cols]
-        fNT = calculate_fNT(T+Tadj, Ei)
+        cols = ['dHeq', 'Tm']
+        dHeq, Tm =df.loc[uniprot_id,cols]
+        fNT = calculate_fNT(T+Tadj, dHeq,Tm=Tm)
         if fNT < 1e-32: fNT = 1e-32
         new_coeff = rxn.metabolites[met]/fNT
         
@@ -128,7 +126,7 @@ def map_kcatT(model,T,df):
     # based on Arrhenius equation
     # model, cobra model
     # T, temperature, in K
-    # df, a dataframe containing thermal parameters of enzymes: Ea, Ei, Topt
+    # df, a dataframe containing thermal parameters of enzymes: Ea, dHeq, Topt
     # Ensure that Topt is in K. Other parameters are in standard units.
     #
     # Jakob Peder Pettersen, 2021-10-28
@@ -152,8 +150,8 @@ def map_kcatT(model,T,df):
         # In some casese, this coefficient could be 2/kcat or some other values. This doesn't matter.
         #
         # a protein could be involved in several reactions
-        cols = ['Ea', 'Ei', 'Topt']
-        [Ea, Ei,  Topt]=df.loc[uniprot_id,cols]
+        cols = ['Ea', 'Topt', 'dHeq', 'Tm']
+        [Ea, Topt, dHeq, Tm] = df.loc[uniprot_id,cols]
 
 
         for rxn in met.reactions:
@@ -163,7 +161,7 @@ def map_kcatT(model,T,df):
             kcatTopt = -1/rxn.metabolites[met]
 
 
-            kcatT = calculate_kcatT(T, Ea) * kcatTopt / (calculate_kcatT(Topt, Ea) * calculate_fNT(Topt, Ei))
+            kcatT = calculate_kcatT(T, Ea) * kcatTopt / (calculate_kcatT(Topt, Ea) * calculate_fNT(T=Topt, dHeq=dHeq, Tm=Tm))
             if kcatT < 1e-32: kcatT = 1e-32
             new_coeff = -1/kcatT
 
@@ -226,12 +224,15 @@ def simulate_growth(model,Ts,sigma,df,Tadj=0):
             rs.append(r)
     return rs
 
+
 def sample_data_uncertainty(params,columns=None):
     '''
     # params is a dataframe with following columns:
     # Tm,Tm_std:  melting temperature. Given in K
     #
     # Topt,Topt_std: the optimal temprature at which the specific activity is maximized. Given in K
+    #
+    # T90, temperature at which 90% of an enzyme is denatured. Given in K
     #
     # xx_std, corresponding uncertainty given by standard deviation.
     # 
@@ -242,9 +243,11 @@ def sample_data_uncertainty(params,columns=None):
     '''
     sampled_params = params.copy()
     if columns is None: columns = ['Tm','Topt']
+
     for col in columns:
-        for ind in params.index: 
-            sampled_params.loc[ind,col] = np.random.normal(params.loc[ind,col],params.loc[ind,col+'_std'])
+        sampled_params[col] = np.random.normal(params[col],params[col+'_std'])
+        if col == 'Tm':
+                sampled_params['T90'] = sampled_params[col] + params['T90']-params[col]
     return sampled_params
     
 
@@ -270,7 +273,7 @@ def sample_data_uncertainty_with_constraint(inpt,columns=None):
     sampled_params = params.copy()
     if columns is None: columns = ['Tm', 'Topt']
     for col in columns:
-        lst = [np.random.normal(params.loc[ind,col],params.loc[ind,col+'_std']) for ind in sampled_params.index]
+        lst = np.random.normal(params[col], params[col+'_std'])
         sampled_params[col] = lst
           
     # resample those ones with Topt>=Tm
@@ -288,7 +291,7 @@ def sample_data_uncertainty_with_constraint(inpt,columns=None):
             if count>10: break
         sampled_params.loc[ind,'Tm'],sampled_params.loc[ind,'Topt'] = tm,topt
     
-    # update Topt
+    sampled_params['T90'] = sampled_params['Tm']+params['T90']-params['Tm']
     return sampled_params
 
 
@@ -296,22 +299,21 @@ def calculate_thermal_params(params):
     '''
     # params, a dataframe with at least following columns: Tm, Topt. All are in standard units.
     # 
-    # The script will return a dataframe with following columns: Ea, Ei, Topt
+    # The script will return a dataframe with following columns: Ea, dHeq, Topt, Tm
     # 
     '''
     thermalparams = pd.DataFrame()
+    thermalparams.index = params.index
     
-    # step 1: calculate dHTH,dSTS,dCpu from tm, t90/length
-    for ind in params.index:
-        Tm,Topt = params.loc[ind,['Tm', 'Topt']]
-
-        Ea, Ei = get_Ea_Ei_from_Topt_Tm(Topt=Topt, Tm=Tm)
-        thermalparams.loc[ind,'Tm'] = Tm
-        thermalparams.loc[ind,'Topt'] = Topt
+    # step 1: calculate Ea,dHeq from tm, t90
+    Tm, Topt, T90 = params[['Tm', 'Topt', 'T90']].T.to_numpy()
+    Ea, dHeq = get_Ea_dHeq_from_Topt_Tm_T90(Topt=Topt, Tm=Tm, T90=T90)
+    thermalparams['Ea'] = Ea
+    thermalparams['dHeq'] = dHeq
         
-        
-    # step 2. copy columns Topt and dCpt
-    thermalparams['Topt'] = params ['Topt']
+    # step 2. copy columns Topt and Tm
+    thermalparams['Tm'] = params['Tm']
+    thermalparams['Topt'] = params['Topt']
     
     return thermalparams
         

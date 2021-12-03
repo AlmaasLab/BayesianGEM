@@ -12,6 +12,7 @@ from multiprocessing import Process,cpu_count,Manager
 from decimal import Decimal
 import pickle
 import os
+import logging
 
 
 # In[2]:
@@ -56,7 +57,7 @@ class RV:
 
 class SMCABC:
     def __init__(self,simulator,priors,min_epsilon,population_size,distance_function,
-                 Yobs,outfile,cores=cpu_count(),generation_size=128):
+                 Yobs,outfile,cores=cpu_count(),generation_size=128, maxiter=100000):
         '''
         simulator:       a function that takes a dictionary of parameters as input. Ouput {'data':Ysim}
         priors:          a dictionary which use id of parameters as keys and RV class object as values
@@ -67,6 +68,7 @@ class SMCABC:
         outfile:         unique id for the experiment. This will be also used to continue a simulation that 
                          is partly done
         cores:           number of treads
+        maxiter:         Maximum number of iterations before breaking the fitting
         
         !!!Important: distance is to be minimized!!!
         '''
@@ -91,6 +93,7 @@ class SMCABC:
         self.all_simulated_data = []  # store all simulated data
         self.all_particles = []       # store all simulated particles
         self.all_distances = []       # store all simulated distances
+        self.maxiter = maxiter
         
     
     def simulate_one(self,particle,index,Q):
@@ -115,10 +118,21 @@ class SMCABC:
         distances = [None for _ in range(len(particles))]
         simulated_data = [None for _ in range(len(particles))]
 
-        for index,res in [Q.get(timeout=1) for p in jobs]: 
+        while not Q.empty():
+            index,res = Q.get(timeout=1)
             distances[index] = self.distance_function(self.Yobs,res)
             simulated_data[index] = res
         
+        # Q may not always contain the result of all jobs we passed to it,
+        # this must be handled carefully
+        missing_indicies = [i for i, val in enumerate(distances) if val is None]
+        # We solve the problem by removing elements corresponding to missing
+        # values
+        for i in missing_indicies:
+            del simulated_data[i]
+            del particles[i]
+            del distances[i]
+            
         # save all simulated results
         self.all_simulated_data.extend(simulated_data)
         self.all_distances.extend(distances)
@@ -160,7 +174,7 @@ class SMCABC:
         return particles_t, simulated_data_t, distances_t
     
     def update_population(self,particles_t, simulated_data_t, distances_t):
-        print ('updating population')
+        logging.info('Updating population')
         # save first generation
         if len(self.population) == 0:
             self.population_t0 = particles_t
@@ -178,11 +192,11 @@ class SMCABC:
         self.simulated_data = list(combined_simulated[sort_index][:self.population_size])
         self.epsilons.append(np.max(self.distances))
         
-        print('Model: epsilon=',str(self.epsilons[-1]))
+        logging.info(f"Model epsilon: {str(self.epsilons[-1])}")
         
         
     def update_posterior(self):
-        print ('Updating prior')
+        logging.info('Updating prior')
         parameters = dict()   # {'Protein_Tm':[]}
         for particle in self.population:
             for p,val in particle.items(): 
@@ -195,9 +209,14 @@ class SMCABC:
         
     
     def run_simulation(self):
-        while self.epsilons[-1] > self.min_epsilon:
+        for _ in range(self.maxiter):
+            if self.epsilons[-1] <= self.min_epsilon:
+                logging.info("Bayesian fitting procedure ended successfully")
+                break
             particles_t, simulated_data_t, distances_t = self.simulate_a_generation()
             self.update_population(particles_t, simulated_data_t, distances_t)
             self.update_posterior()
             pickle.dump(self,open(self.outfile,'wb'))
-
+            #logging.info(f"epsilon: {self.epsilons[-1]}")
+        else:
+            logging.warning("Maximum number of iterations reached")

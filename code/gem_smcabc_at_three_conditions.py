@@ -64,7 +64,7 @@ for ind in params.index:
 
 min_epsilon = -1 # equivalent to r2 score of 1
 population_size = 100
-outfile = '../results/smcabc_gem_three_conditions_save_all_particles_arrhenius.pkl'
+outfile = '../results/smcabc_gem_three_conditions_save_all_particles.pkl'
 
 
 # In[ ]:

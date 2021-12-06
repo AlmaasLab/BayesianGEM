@@ -1,7 +1,9 @@
+from cobra.exceptions import OptimizationError
 import numpy as np
 from scipy.optimize import fsolve
 import pandas as pd
 import time
+import logging
 
 R = 8.314
 
@@ -216,9 +218,11 @@ def simulate_growth(model,Ts,sigma,df,Tadj=0):
             set_NGAMT(model,T)
             set_sigma(model,sigma)
 
-            try: r = model.optimize().objective_value
-            except:
-                print('Failed to solve the problem')
+            try:
+                 r = model.optimize().objective_value
+                 logging.info("Model solved successfully")
+            except OptimizationError as err:
+                logging.info(f'Failed to solve the problem, problem: {str(err)}')
                 r = 0
             print(T-273.15,r)
             rs.append(r)
@@ -358,7 +362,9 @@ def simulate_chomostat(model,dilu,params,Ts,sigma,growth_id,glc_up_id,prot_pool_
                     
                     solution2 = m1.optimize()
                     solutions.append(solution2)
-                except:
+                    logging.info('Model solved successfully')
+                except OptimizationError as err:
+                    logging.info(f'Failed to solve the problem, problem: {str(err)}')
                     print('Failed to solve the problem')
                     #solutions.append(None)
                     break # because model has been impaired. Further simulation won't give right output.

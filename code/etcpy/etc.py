@@ -2,6 +2,9 @@ import numpy as np
 from scipy.optimize import fsolve
 import pandas as pd
 import time
+from cobra import Model
+from cobra.exceptions import OptimizationError
+import logging
 
 def get_dH_dS_dCpu_from_TmT90(Tm,T90):
     '''
@@ -241,7 +244,7 @@ def set_sigma(model,sigma):
     rxn.upper_bound = 0.17866*sigma
 
 
-def simulate_growth(model,Ts,sigma,df,Tadj=0):
+def simulate_growth(model: Model,Ts,sigma,df,Tadj=0):
     '''
     # model, cobra model
     # Ts, a list of temperatures in K
@@ -260,9 +263,11 @@ def simulate_growth(model,Ts,sigma,df,Tadj=0):
             set_NGAMT(model,T)
             set_sigma(model,sigma)
 
-            try: r = model.optimize().objective_value
-            except:
-                print('Failed to solve the problem')
+            try:
+                 r = model.optimize(raise_error=True).objective_value
+                 logging.info("Model solved successfully")
+            except OptimizationError as err:
+                logging.info(f'Failed to solve the problem, problem: {str(err)}')
                 r = 0
             print(T-273.15,r)
             rs.append(r)
@@ -384,7 +389,7 @@ def calculate_thermal_params(params):
     return thermalparams
         
         
-def simulate_chomostat(model,dilu,params,Ts,sigma,growth_id,glc_up_id,prot_pool_id):
+def simulate_chomostat(model: Model,dilu,params,Ts,sigma,growth_id,glc_up_id,prot_pool_id):
     '''
     # Do simulation on a given dilution and a list of temperatures. 
     # model, cobra model
@@ -398,7 +403,6 @@ def simulate_chomostat(model,dilu,params,Ts,sigma,growth_id,glc_up_id,prot_pool_
     '''
     solutions = list() # corresponding to Ts. a list of solutions from model.optimize()
     df = calculate_thermal_params(params)
-    
     with model as m0:
         # Step 1: fix growth rate, set objective function as minimizing glucose uptatke rate
         rxn_growth = m0.reactions.get_by_id(growth_id)
@@ -417,15 +421,16 @@ def simulate_chomostat(model,dilu,params,Ts,sigma,growth_id,glc_up_id,prot_pool_
                 
                 try: 
                     # Step 3: minimize the glucose uptake rate. Fix glucose uptake rate, minimize enzyme usage
-                    solution1 = m1.optimize()
+                    solution1 = m1.optimize(raise_error=True)
                     m1.reactions.get_by_id(glc_up_id).upper_bound = solution1.objective_value*1.001
                     m1.objective = prot_pool_id
                     m1.objective.direction = 'min'
                     
-                    solution2 = m1.optimize()
+                    solution2 = m1.optimize(raise_error=True)
                     solutions.append(solution2)
-                except:
-                    print('Failed to solve the problem')
+                    logging.info('Model solved successfully')
+                except OptimizationError as err:
+                    logging.info(f'Failed to solve the problem, problem: {str(err)}')
                     #solutions.append(None)
                     break # because model has been impaired. Further simulation won't give right output.
     return solutions

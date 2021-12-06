@@ -10,10 +10,11 @@ import GEMS
 import os
 import pandas as pd
 import pickle
+import logging
 
 # Very evil trick to make the module use the Arrhenius version of etc
 GEMS.etc = GEMS.arrhenius_etc
-
+logging.basicConfig(level=logging.DEBUG, format='%(asctime)s %(message)s') 
 # In[2]:
 
 

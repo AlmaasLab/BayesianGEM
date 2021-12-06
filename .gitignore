@@ -3,4 +3,6 @@ results
 code/__pycache__
 code/etcpy/__pycache__
 code/arrhenius_etcpy/__pycache__/*
-
+results/*
+*.log
+results.tar.gz

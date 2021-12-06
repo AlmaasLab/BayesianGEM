@@ -13,6 +13,7 @@ from arrhenius_etcpy import arrhenius_etc
 import os
 from sklearn.metrics import mean_squared_error as MSE
 from sklearn.metrics import r2_score
+from cobra.exceptions import Infeasible
 
 
 
@@ -116,8 +117,7 @@ def aerobic(thermalParams):
     df,new_params = format_input(thermalParams)
     mae = pickle.load(open(os.path.join(path,'models/aerobic.pkl'),'rb'))
     
-    try: rae = etc.simulate_growth(mae,dfae_batch.index+273.15,df=df,sigma=0.5)
-    except: rae = np.zeros(dfae_batch.shape[0])
+    rae = etc.simulate_growth(mae,dfae_batch.index+273.15,df=df,sigma=0.5)
     
     rae = [0 if x is None else x for x in rae]
     rae = [0 if x<1e-3 else x for x in rae]
@@ -136,8 +136,7 @@ def anaerobic(thermalParams):
     df,new_params = format_input(thermalParams)
     man = pickle.load(open(os.path.join(path,'models/anaerobic.pkl'),'rb'))
 
-    try: ran = etc.simulate_growth(man,dfan_batch.index+273.15,df=df,sigma=0.5)
-    except: ran = np.zeros(dfan_batch.shape[0])
+    ran = etc.simulate_growth(man,dfan_batch.index+273.15,df=df,sigma=0.5)
     ran = [0 if x is None else x for x in ran]
     rexp = anaerobic_exp_data()['data']
     
@@ -154,16 +153,15 @@ def anaerobic_reduced(thermalParams):
     df,new_params = format_input(thermalParams)
     man = pickle.load(open(os.path.join(path,'models/anaerobic.pkl'),'rb'))
     sel_temp = [5.0,15.0,26.3,30.0,33.0,35.0,37.5,40.0]
-    try: ran = etc.simulate_growth(man,np.array(sel_temp)+273.15,df=df,sigma=0.5)
-    except: ran = np.zeros(len(sel_temp))
+    ran = etc.simulate_growth(man,np.array(sel_temp)+273.15,df=df,sigma=0.5)
     ran = [0 if x is None else x for x in ran]
     rexp = dfan_batch.loc[sel_temp,'r_an'].values
     #anaerobic_exp_data()['data']
     
-    try:
-        print('r2_batch_an:',r2_score(rexp,ran))
-        print('MSE_an',MSE(rexp,ran))
-    except: print('Model error:',len(rexp),len(ran))
+    
+    print('r2_batch_an:',r2_score(rexp,ran))
+    print('MSE_an',MSE(rexp,ran))
+    print('Model error:',len(rexp),len(ran))
 
     return  {'data':np.array(ran)}
 
@@ -182,26 +180,25 @@ def chemostat(thermalParams):
     dilut = 0.1
     sigma = 0.5
     
-    try:
-        solution = etc.simulate_chomostat(mae,dilut,new_params,dfchemo.index+273.15,
-                                              sigma,growth_id,glc_up_id,prot_pool_id)
+    solution = etc.simulate_chomostat(mae,dilut,new_params,dfchemo.index+273.15,
+                                            sigma,growth_id,glc_up_id,prot_pool_id)
 
-        # Extract fluxes
-        rxn_lst = [
-                'r_1714_REV',#Glucose
-                'r_1672', #CO2
-                'r_1761', # Ethanol
-            ]
-        columns = ['Glucose','CO2','Ethanol']
+    # Extract fluxes
+    rxn_lst = [
+            'r_1714_REV',#Glucose
+            'r_1672', #CO2
+            'r_1761', # Ethanol
+        ]
+    columns = ['Glucose','CO2','Ethanol']
 
-        pred_flux = []
-        for i,rxn_id in enumerate(rxn_lst):
-            x = [s.fluxes[rxn_id] for s in solution]
-            x.extend([0]*(len(dfchemo.index)-len(x)))
-            pred_flux += x
-        print(pred_flux)
+    pred_flux = []
+    for i,rxn_id in enumerate(rxn_lst):
+        x = [s.fluxes[rxn_id] for s in solution]
+        x.extend([0]*(len(dfchemo.index)-len(x)))
+        pred_flux += x
+    print(pred_flux)
     
-    except: pred_flux = [0 for item in exp_flux]
+    # pred_flux = [0 for item in exp_flux]
     
     print('r2_flux:',r2_score(exp_flux,pred_flux))
     print('MSE_chemo',MSE(exp_flux,pred_flux))

@@ -365,7 +365,6 @@ def simulate_chomostat(model,dilu,params,Ts,sigma,growth_id,glc_up_id,prot_pool_
                     logging.info('Model solved successfully')
                 except OptimizationError as err:
                     logging.info(f'Failed to solve the problem, problem: {str(err)}')
-                    print('Failed to solve the problem')
                     #solutions.append(None)
                     break # because model has been impaired. Further simulation won't give right output.
     return solutions

@@ -68,7 +68,7 @@ outfile = '../results/smcabc_gem_three_conditions_save_all_particles_arrhenius.p
 
 
 if not os.path.exists(outfile):
-    print('Initialize model')
+    logging.info('Initialize model')
     model = abc.SMCABC(GEMS.simulate_at_three_conditions_2,
                         priors,
                         min_epsilon,
@@ -86,6 +86,6 @@ else: model = pickle.load(open(outfile,'rb'))
 # In[ ]:
 
 
-print('start simulations')
+logging.info('start simulations')
 model.run_simulation()
 

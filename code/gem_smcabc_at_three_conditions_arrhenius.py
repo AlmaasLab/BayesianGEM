@@ -59,7 +59,7 @@ for ind in params.index:
 # In[ ]:
 
 
-min_epsilon = -1 # equivalent to r2 score of 1
+min_epsilon = -.9 # equivalent to r2 score of 1
 population_size = 100
 outfile = '../results/smcabc_gem_three_conditions_save_all_particles_arrhenius.pkl'
 
@@ -76,7 +76,8 @@ if not os.path.exists(outfile):
                         GEMS.distance_2,
                         Yobs,
                         outfile,
-                        generation_size=128)
+                        generation_size=128,
+                        maxiter=100)
 else: model = pickle.load(open(outfile,'rb'))
 
 

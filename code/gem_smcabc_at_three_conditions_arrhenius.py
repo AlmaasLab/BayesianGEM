@@ -14,7 +14,7 @@ import logging
 
 # Very evil trick to make the module use the Arrhenius version of etc
 GEMS.etc = GEMS.arrhenius_etc
-logging.basicConfig(level=logging.DEBUG, format='%(asctime)s %(message)s') 
+logging.basicConfig(level=logging.DEBUG, format='%(asctime)s %(message)s')
 # In[2]:
 
 
@@ -48,10 +48,10 @@ params = pd.read_csv(os.path.join(path,'data/model_enzyme_params.csv'),index_col
 
 priors = dict()
 for ind in params.index: 
-    for col in ['Tm','Topt','dCpt']: 
+    for col in ['Tm','Topt']: 
         priors['{0}_{1}'.format(ind,col)] = abc.RV('normal',
                                                       loc=params.loc[ind,col],
-                                                      scale=params.loc[ind,col+'_std'])
+                                                      scale=params.loc[ind,col+'_std'])                                                      
 
 
 # #### Define model settings

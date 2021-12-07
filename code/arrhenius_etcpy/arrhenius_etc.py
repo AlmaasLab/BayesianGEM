@@ -46,7 +46,7 @@ def calculate_rate(T, Ea, dHeq, Tm, A=1):
 
 def get_Ea_dHeq_from_Topt_Tm_T90(Topt,Tm, T90):
     '''
-    # With knowing Topt and Tm, we can compute the activation energies
+    # With knowing Topt, Tm and T90, we can compute the activation energies
     # using:
     # 
     # d / dT rate(T_opt) = 0
@@ -115,7 +115,7 @@ def map_fNT(model,T,df,Tadj=0):
         dHeq, Tm =df.loc[uniprot_id,cols]
         fNT = calculate_fNT(T+Tadj, dHeq,Tm=Tm)
         if fNT < 1e-32: fNT = 1e-32
-        new_coeff = rxn.metabolites[met]/fNT
+        new_coeff = rxn.metabolites[met] / fNT
         
         change_rxn_coeff(rxn,met,new_coeff)
         
@@ -299,9 +299,9 @@ def sample_data_uncertainty_with_constraint(inpt,columns=None):
     return sampled_params
 
 
-def calculate_thermal_params(params):
+def calculate_thermal_params(params: pd.DataFrame):
     '''
-    # params, a dataframe with at least following columns: Tm, Topt. All are in standard units.
+    # params, a dataframe with at least following columns: Tm, T90, Topt. All are in standard units.
     # 
     # The script will return a dataframe with following columns: Ea, dHeq, Topt, Tm
     # 
@@ -311,6 +311,11 @@ def calculate_thermal_params(params):
     
     # step 1: calculate Ea,dHeq from tm, t90
     Tm, Topt, T90 = params[['Tm', 'Topt', 'T90']].T.to_numpy()
+    # Some T90 values might be missing, so we calculate this from the average
+    # T90 values from Tm for those enzyme where T90 is available
+    T90_available = np.isfinite(T90)
+    denaturation_span = np.mean(T90[T90_available] - Tm[T90_available])
+    T90[~T90_available] = Tm[~T90_available] + denaturation_span
     Ea, dHeq = get_Ea_dHeq_from_Topt_Tm_T90(Topt=Topt, Tm=Tm, T90=T90)
     thermalparams['Ea'] = Ea
     thermalparams['dHeq'] = dHeq
@@ -365,7 +370,6 @@ def simulate_chomostat(model,dilu,params,Ts,sigma,growth_id,glc_up_id,prot_pool_
                     logging.info('Model solved successfully')
                 except OptimizationError as err:
                     logging.info(f'Failed to solve the problem, problem: {str(err)}')
-                    print('Failed to solve the problem')
                     #solutions.append(None)
                     break # because model has been impaired. Further simulation won't give right output.
     return solutions

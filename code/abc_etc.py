@@ -220,6 +220,6 @@ class SMCABC:
             self.update_population(particles_t, simulated_data_t, distances_t)
             self.update_posterior()
             pickle.dump(self,open(self.outfile,'wb'))
-            #logging.info(f"epsilon: {self.epsilons[-1]}")
+            logging.info(f"Final epsilon: {self.epsilons[-1]}")
         else:
             logging.warning("Maximum number of iterations reached")

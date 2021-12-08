@@ -6,3 +6,4 @@ code/arrhenius_etcpy/__pycache__/*
 results/*
 *.log
 results.tar.gz
+*.ipynb_checkpoints

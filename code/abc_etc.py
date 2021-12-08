@@ -126,6 +126,9 @@ class SMCABC:
         # Q may not always contain the result of all jobs we passed to it,
         # this must be handled carefully
         missing_indicies = [i for i, val in enumerate(distances) if val is None]
+        # Great care must be taken, deleting indicies must take place in
+        # decreasing order in order to not shift the indicies
+        missing_indicies.sort(reverse=True)
         # We solve the problem by removing elements corresponding to missing
         # values
         for i in missing_indicies:
@@ -217,6 +220,6 @@ class SMCABC:
             self.update_population(particles_t, simulated_data_t, distances_t)
             self.update_posterior()
             pickle.dump(self,open(self.outfile,'wb'))
-            #logging.info(f"epsilon: {self.epsilons[-1]}")
+            logging.info(f"Final epsilon: {self.epsilons[-1]}")
         else:
             logging.warning("Maximum number of iterations reached")

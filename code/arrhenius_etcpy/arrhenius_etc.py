@@ -219,7 +219,7 @@ def simulate_growth(model,Ts,sigma,df,Tadj=0):
             set_sigma(model,sigma)
 
             try:
-                 r = model.optimize().objective_value
+                 r = model.optimize(raise_error=True).objective_value
                  logging.info("Model solved successfully")
             except OptimizationError as err:
                 logging.info(f'Failed to solve the problem, problem: {str(err)}')
@@ -360,12 +360,12 @@ def simulate_chomostat(model,dilu,params,Ts,sigma,growth_id,glc_up_id,prot_pool_
                 
                 try: 
                     # Step 3: minimize the glucose uptake rate. Fix glucose uptake rate, minimize enzyme usage
-                    solution1 = m1.optimize()
+                    solution1 = m1.optimize(raise_error=True)
                     m1.reactions.get_by_id(glc_up_id).upper_bound = solution1.objective_value*1.001
                     m1.objective = prot_pool_id
                     m1.objective.direction = 'min'
                     
-                    solution2 = m1.optimize()
+                    solution2 = m1.optimize(raise_error=True)
                     solutions.append(solution2)
                     logging.info('Model solved successfully')
                 except OptimizationError as err:

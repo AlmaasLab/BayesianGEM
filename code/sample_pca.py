@@ -63,17 +63,7 @@ def perform_pca_on_parameters(df):
     logging.info(pca.explained_variance_ratio_)
     return PCS, pca.explained_variance_ratio_
 
-model_frame = load_pickle("../results/permuted_smcabc_res/simulation_skeleton.pkl")
-model_frame.set_index(["origin","status"], inplace=True)
 
-with multiprocessing.Pool(8) as p:
-    particle_df_map = p.map(build_a_dataframe_for_all_particles,model_frame.outfile)
-    model_frame["particle_df"] = list(particle_df_map)
-
-dump_pickle(model_frame["particle_df"], "../results/permuted_smcabc_res/particle_df.pkl")
-
-full_particle_df_dict = {distribution: df for distribution, df in model_frame["particle_df"].iteritems()}
-combined_df = combine_dataframes_for_models(full_particle_df_dict)
-dump_pickle(combined_df, "../results/permuted_smcabc_res/combined_particle_df.pkl")
+combined_df = load_pickle("../results/permuted_smcabc_res/combined_particle_df.pkl")
 pca_ordination = perform_pca_on_parameters(combined_df)
 dump_pickle(pca_ordination,"../results/permuted_smcabc_res/pca_full_ordination.pkl")

@@ -3,6 +3,7 @@
 #SBATCH --output=sample_pca.out
 #SBATCH --nodes=1                    
 #SBATCH -c 8
+#SBATCH --mem=200G
 #SBATCH -t 100:00:00             # Upper time limit for the job
 #SBATCH --mail-type=begin
 #SBATCH --mail-type=end

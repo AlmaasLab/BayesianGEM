@@ -2,7 +2,7 @@
 #SBATCH -J sample_pca               # sensible name for the job
 #SBATCH --output=sample_pca.out
 #SBATCH --nodes=1                    
-#SBATCH -c 8
+#SBATCH -c 1
 #SBATCH --mem=200G
 #SBATCH -t 100:00:00             # Upper time limit for the job
 #SBATCH --mail-type=begin

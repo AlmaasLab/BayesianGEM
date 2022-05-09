@@ -6,4 +6,5 @@ code/etcpy/__pycache__
 results.tar.gz
 *.ipynb_checkpoints
 code/.ipynb_checkpoints/*
+*.austin
 

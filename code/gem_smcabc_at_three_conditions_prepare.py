@@ -87,4 +87,3 @@ candidate_frame['outfile'] = [f'{outdir}/smcabc_gem_three_conditions_updated_{or
 candidate_frame['random_seed'] = rng.choice(range(0,100000), candidate_frame.shape[0])
 
 pickle.dump(file=open(file=f'{outdir}/simulation_skeleton.pkl',mode='wb'),obj=candidate_frame)
-
